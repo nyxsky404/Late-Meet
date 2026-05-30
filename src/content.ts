@@ -7,7 +7,6 @@ import {
 
 import { initTheme } from "./theme.js";
 
-
 initTheme();
 
 (() => {
