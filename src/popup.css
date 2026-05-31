@@ -544,8 +544,8 @@ body::-webkit-scrollbar-thumb {
 }
 
 .topic-status.unresolved {
-  color: #d97706;
-  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
 }
 
 /* ——— Late Joiners ——— */
