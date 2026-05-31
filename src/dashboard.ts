@@ -1051,10 +1051,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         break;
       case "End":
         e.preventDefault();
-        items[items.length - 1]?.focus();
+        items.at(-1)?.focus();
         break;
       case "Tab":
         closeExportDropdown(false);
+        break;
+      default:
         break;
     }
   });
