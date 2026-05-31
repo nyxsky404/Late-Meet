@@ -1643,9 +1643,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab?.id) return;
 
   const isMeetTab = isMeetHostname(tab.url);
-  const meetingId = isMeetTab
-    ? (tab.url?.match(/meet\.google\.com\/([a-z-]+)/)?.[1] ?? null)
-    : null;
+  const meetingId = getMeetingIdFromUrl(tab.url);
   const meetingUrl = tab.url || null;
 
   if (!state.audioActive) {
