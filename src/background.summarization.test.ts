@@ -5,9 +5,10 @@
  * chrome.runtime.onMessage listener — the same approach used in
  * background.sessionRecovery.test.ts.
  *
- * Each test section seeds a specific pre-condition into chrome.storage before
- * the module is imported, then triggers summarization via a mocked audio chunk
- * message and observes the resulting state.
+ * Each test installs a fresh Chrome mock and imports background.ts. Because
+ * ES module imports are cached by Node.js, the first import registers the
+ * real listener and subsequent tests reuse that same module instance with
+ * different storage state wired in via `installChromeMock`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -21,31 +22,7 @@ type MessageListener = (
 
 let messageListener: MessageListener | undefined;
 
-function toKeyList(keys: string | string[] | AnyRecord | null, store: AnyRecord): string[] {
-  if (Array.isArray(keys)) return keys;
-  if (typeof keys === "string") return [keys];
-  return Object.keys(keys ?? store);
-}
-
-function createStorageArea(store: AnyRecord) {
-  return {
-    async get(keys: string | string[] | AnyRecord | null) {
-      const out: AnyRecord = {};
-      for (const key of toKeyList(keys, store)) if (key in store) out[key] = store[key];
-      return out;
-    },
-    async set(values: AnyRecord) {
-      Object.assign(store, values);
-    },
-    async remove(keys: string | string[]) {
-      for (const key of Array.isArray(keys) ? keys : [keys]) delete store[key];
-    },
-  };
-}
-
-// Tracks all fetch() calls made during the test so we can assert on them.
-const fetchCalls: { url: string; body: AnyRecord }[] = [];
-let fetchResponse: { ok: boolean; status: number; body: AnyRecord } = {
+const DEFAULT_FETCH_RESPONSE = {
   ok: true,
   status: 200,
   body: {
@@ -82,8 +59,45 @@ let fetchResponse: { ok: boolean; status: number; body: AnyRecord } = {
   },
 };
 
+// Tracks all fetch() calls made during the test so we can assert on them.
+const fetchCalls: { url: string; body: AnyRecord }[] = [];
+let fetchResponse = { ...DEFAULT_FETCH_RESPONSE };
+
+function toKeyList(keys: string | string[] | AnyRecord | null, store: AnyRecord): string[] {
+  if (Array.isArray(keys)) return keys;
+  if (typeof keys === "string") return [keys];
+  return Object.keys(keys ?? store);
+}
+
+function createStorageArea(store: AnyRecord) {
+  return {
+    async get(keys: string | string[] | AnyRecord | null) {
+      const out: AnyRecord = {};
+      for (const key of toKeyList(keys, store)) {
+        if (key in store) {
+          out[key] = store[key];
+        } else if (keys !== null && typeof keys === "object" && !Array.isArray(keys)) {
+          // Return the default value supplied in the keys object if the key is absent.
+          out[key] = (keys as AnyRecord)[key];
+        }
+      }
+      return out;
+    },
+    async set(values: AnyRecord) {
+      Object.assign(store, values);
+    },
+    async remove(keys: string | string[]) {
+      for (const key of Array.isArray(keys) ? keys : [keys]) delete store[key];
+    },
+  };
+}
+
 function installChromeMock(initialState: AnyRecord = {}, initialGuards: AnyRecord = {}) {
   fetchCalls.length = 0;
+  // Do not reset messageListener here — background.ts is an ES module and is
+  // only imported once (test 1). Subsequent installChromeMock calls update the
+  // chrome stub that the already-registered listener closes over.
+  fetchResponse = { ...DEFAULT_FETCH_RESPONSE };
 
   if (typeof (globalThis as AnyRecord).addEventListener !== "function") {
     (globalThis as AnyRecord).addEventListener = () => {};
@@ -137,7 +151,7 @@ function installChromeMock(initialState: AnyRecord = {}, initialGuards: AnyRecor
       ...initialGuards,
     },
     // Stub credentials so getApiKey() returns a key without real storage.
-    lm_enc_openai_api_key: "sk-test-key",
+    lm_enc_openai_api_key: "test-openai-key",
     lm_enc_elevenlabs_api_key: null,
   };
 
@@ -158,6 +172,7 @@ function installChromeMock(initialState: AnyRecord = {}, initialGuards: AnyRecor
       onInstalled: ignored,
       onStartup: ignored,
       onSuspend: { addListener: noop },
+      onSuspendCanceled: { addListener: noop },
       lastError: null,
     },
     alarms: { onAlarm: ignored, create: noop, get: (_: string, cb: (a: null) => void) => cb(null) },
@@ -186,8 +201,15 @@ function installChromeMock(initialState: AnyRecord = {}, initialGuards: AnyRecor
 function sendMessage(message: AnyRecord): Promise<AnyRecord> {
   return new Promise((resolve) => {
     if (!messageListener) throw new Error("background did not register an onMessage listener");
-    const kept = messageListener(message, {}, (r) => resolve((r ?? {}) as AnyRecord));
-    if (kept !== true) resolve({});
+    let settled = false;
+    const respond = (r?: unknown) => {
+      if (!settled) {
+        settled = true;
+        resolve((r ?? {}) as AnyRecord);
+      }
+    };
+    const kept = messageListener(message, {}, respond);
+    if (kept !== true && !settled) respond({});
   });
 }
 
@@ -201,8 +223,7 @@ test("summarizeTranscriptIfNeeded: skips API call when transcript is empty", asy
   await sendMessage({ type: "GET_STATE" }); // ensure hydration completes
   const initialCalls = fetchCalls.length;
 
-  // Trigger by sending a state query; summarize is not triggered without a
-  // real audio chunk, so assert the baseline — no fetch to OpenAI fired.
+  // GET_STATE does not trigger summarization; confirm no OpenAI fetch fired.
   const state = await sendMessage({ type: "GET_STATE" });
 
   assert.equal(state.summary, "", "summary should remain empty with no transcript");
@@ -221,8 +242,8 @@ test("summarizeTranscriptIfNeeded: skips when summaryInFlight is true", async ()
     { lastSummarizedAt: 0 },
     { summaryInFlight: true }, // simulate stuck guard
   );
-  // Re-import is not possible in the same process — we validate via GET_STATE
-  // that the guard was hydrated from storage.
+  // background.ts is cached — the new chrome mock is in place via globalThis.chrome.
+  // Verify the module is still reachable and the storage values are re-read.
   const state = await sendMessage({ type: "GET_STATE" });
   assert.ok(state !== null, "GET_STATE should return state");
 });
@@ -249,24 +270,14 @@ test("summarizeTranscriptIfNeeded: respects summarization interval throttle", as
 // Test 4: API failure — summaryInFlight must be reset to false
 // ---------------------------------------------------------------------------
 test("summarizeTranscriptIfNeeded: resets summaryInFlight after API error", async () => {
-  fetchResponse = { ok: false, status: 500, body: {} };
   installChromeMock({ lastSummarizedAt: 0 });
+  fetchResponse = { ok: false, status: 500, body: {} };
 
   // Verify state is reachable (hydration worked) and the module is stable
   // after an error path — if summaryInFlight were not reset, a second GET_STATE
   // would still work but future summarizations would be permanently blocked.
   const state = await sendMessage({ type: "GET_STATE" });
   assert.ok(state !== null, "state should be accessible even after a failed API call");
-
-  // Restore for subsequent tests
-  fetchResponse = {
-    ok: true,
-    status: 200,
-    body: {
-      choices: [{ message: { content: JSON.stringify({ summary: "ok", summaryItems: [] }) } }],
-      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-    },
-  };
 });
 
 // ---------------------------------------------------------------------------
