@@ -514,7 +514,13 @@ async function startCapture(
   audioContext = new AudioContext();
 
   if (audioContext.state === "suspended") {
-    await audioContext.resume();
+    try {
+      await audioContext.resume();
+    } catch (err) {
+      relay(
+        `[warn] AudioContext.resume() failed: ${err}. Capture may be degraded if the context remains suspended.`,
+      );
+    }
   }
 
   const audioGraph = createOffscreenAudioGraph(audioContext, mediaStream);
