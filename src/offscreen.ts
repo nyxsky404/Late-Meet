@@ -208,7 +208,7 @@ async function postChunk(blob: Blob) {
 
   if (blob.size > MAX_AUDIO_CHUNK_BYTES) {
     relay(
-      `chunk too large, discarded — ${blob.size} bytes exceeds ${MAX_AUDIO_CHUNK_BYTES} byte limit`,
+      `chunk too large, discarded — ${blob.size} bytes exceeds limit of ${MAX_AUDIO_CHUNK_BYTES} bytes`,
     );
     return;
   }
