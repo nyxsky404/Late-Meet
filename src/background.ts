@@ -2315,6 +2315,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // Flush guard flags to storage before service worker is terminated
 // ---------------------------------------------------------------------------
 chrome.runtime.onSuspend.addListener(() => {
+  // Pending setTimeout callbacks die with the service worker. Clear the handle
+  // so the restarted worker starts with a null reference rather than a stale
+  // timer ID that would cause broadcastStateUpdate() to skip its own clear.
+  if (broadcastTimerHandle !== null) {
+    clearTimeout(broadcastTimerHandle);
+    broadcastTimerHandle = null;
+  }
+
   const guards: HydrationStatus = {
     isStartingAudio,
     isStoppingAudio,
