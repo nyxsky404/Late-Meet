@@ -1,4 +1,5 @@
 import { VoiceActivityTracker, isChunkViable } from "./audioProcessing";
+import { MAX_AUDIO_CHUNK_BYTES } from "./config";
 import {
   connectMicrophoneToOffscreenAudioGraph,
   createOffscreenAudioGraph,
@@ -202,6 +203,13 @@ async function flushAudioChunk(force = false) {
 async function postChunk(blob: Blob) {
   if (!isChunkViable(blob)) {
     relay(`chunk too small, skipped — ${blob?.size ?? 0} bytes (min 5 000)`);
+    return;
+  }
+
+  if (blob.size > MAX_AUDIO_CHUNK_BYTES) {
+    relay(
+      `chunk too large, discarded — ${blob.size} bytes exceeds ${MAX_AUDIO_CHUNK_BYTES} byte limit`,
+    );
     return;
   }
 
