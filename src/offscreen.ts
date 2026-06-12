@@ -517,8 +517,15 @@ async function startCapture(
     try {
       await audioContext.resume();
     } catch (err) {
-      relay(
-        `[warn] AudioContext.resume() failed: ${err}. Capture may be degraded if the context remains suspended.`,
+      const message = err instanceof Error ? err.message : String(err);
+      relay(`[warn] AudioContext.resume() failed: ${message}`);
+    }
+    // If the context is still suspended after the attempt, audio capture will
+    // not produce data. Abort early rather than silently proceeding with a
+    // non-functional pipeline.
+    if (audioContext.state === "suspended") {
+      throw new Error(
+        "AudioContext could not be resumed — browser may be enforcing autoplay policy. Try initiating capture from a user gesture.",
       );
     }
   }
