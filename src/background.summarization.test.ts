@@ -271,7 +271,7 @@ test("summarizeTranscriptIfNeeded: respects summarization interval throttle", as
 // ---------------------------------------------------------------------------
 test("summarizeTranscriptIfNeeded: resets summaryInFlight after API error", async () => {
   installChromeMock({ lastSummarizedAt: 0 });
-  fetchResponse = { ok: false, status: 500, body: {} };
+  fetchResponse = { ok: false, status: 500, body: {} as AnyRecord };
 
   // Verify state is reachable (hydration worked) and the module is stable
   // after an error path — if summaryInFlight were not reset, a second GET_STATE
