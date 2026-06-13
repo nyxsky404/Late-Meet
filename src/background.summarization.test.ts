@@ -61,7 +61,7 @@ const DEFAULT_FETCH_RESPONSE = {
 
 // Tracks all fetch() calls made during the test so we can assert on them.
 const fetchCalls: { url: string; body: AnyRecord }[] = [];
-let fetchResponse = { ...DEFAULT_FETCH_RESPONSE };
+let fetchResponse: { ok: boolean; status: number; body: AnyRecord } = { ...DEFAULT_FETCH_RESPONSE };
 
 function toKeyList(keys: string | string[] | AnyRecord | null, store: AnyRecord): string[] {
   if (Array.isArray(keys)) return keys;
@@ -271,7 +271,7 @@ test("summarizeTranscriptIfNeeded: respects summarization interval throttle", as
 // ---------------------------------------------------------------------------
 test("summarizeTranscriptIfNeeded: resets summaryInFlight after API error", async () => {
   installChromeMock({ lastSummarizedAt: 0 });
-  fetchResponse = { ok: false, status: 500, body: {} as AnyRecord };
+  fetchResponse = { ok: false, status: 500, body: {} };
 
   // Verify state is reachable (hydration worked) and the module is stable
   // after an error path — if summaryInFlight were not reset, a second GET_STATE
