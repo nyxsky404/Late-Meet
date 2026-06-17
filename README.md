@@ -651,13 +651,10 @@ git push origin feature/your-feature-name
 | :---: | :--- | :--- |
 | [#657](https://github.com/shouri123/Late-Meet/issues/657) | fix: Prevent HTML injection and XSS by sanitizing participant names before rendering | General |
 | [#653](https://github.com/shouri123/Late-Meet/issues/653) | feat: Implement strict Content Security Policy (CSP) headers in manifest | General |
-| [#652](https://github.com/shouri123/Late-Meet/issues/652) | feat: Custom accent color picker in options page using color palette grid | General |
 | [#645](https://github.com/shouri123/Late-Meet/issues/645) | feat: Support export of meeting sessions as PDF with clean styling template | General |
 | [#639](https://github.com/shouri123/Late-Meet/issues/639) | feat: Implement structured JSON mode output for transcript refinements | General |
 | [#637](https://github.com/shouri123/Late-Meet/issues/637) | fix: Handle token limit warnings and implement automatic prompt truncation | General |
 | [#633](https://github.com/shouri123/Late-Meet/issues/633) | feat: Support custom system prompts for summary and action-item generation | General |
-| [#630](https://github.com/shouri123/Late-Meet/issues/630) | fix: Handle audio capture track end events dynamically by resetting recorder | General |
-| [#629](https://github.com/shouri123/Late-Meet/issues/629) | feat: Add configurable VAD (Voice Activity Detection) frame size setting | General |
 
 
 #### 🔴 Advanced — `level-3`
