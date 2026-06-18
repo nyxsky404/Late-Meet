@@ -48,7 +48,7 @@ function createStorageArea(store: AnyRecord) {
           out[key] = store[key];
         } else if (keys !== null && typeof keys === "object" && !Array.isArray(keys)) {
           // Return the default value from the keys descriptor when the key is absent.
-          out[key] = (keys as AnyRecord)[key];
+          out[key] = keys[key];
         }
       }
       return out;
@@ -293,8 +293,8 @@ test("generateLateJoinerMessage: includes joiner name in OpenAI prompt body", as
   const fetched = await waitFor(() => fetchCalls.some((c) => c.url.includes("openai")));
 
   if (fetched) {
-    const joinerApiCalls = fetchCalls.filter((c) => c.url.includes("openai"));
-    const prompt = (joinerApiCalls[0].body.messages as AnyRecord[])[0]?.content as string;
+    const joinerApiCall = fetchCalls.find((c) => c.url.includes("openai"));
+    const prompt = (joinerApiCall!.body.messages as AnyRecord[])[0]?.content as string;
     assert.ok(
       typeof prompt === "string" && prompt.includes("Carol"),
       "the joiner name should appear in the prompt sent to the OpenAI API",
@@ -325,8 +325,8 @@ test("generateLateJoinerMessage: sanitizes injected content in joiner name befor
   const fetched = await waitFor(() => fetchCalls.some((c) => c.url.includes("openai")));
 
   if (fetched) {
-    const joinerApiCalls = fetchCalls.filter((c) => c.url.includes("openai"));
-    const prompt = (joinerApiCalls[0].body.messages as AnyRecord[])[0]?.content as string;
+    const joinerApiCall = fetchCalls.find((c) => c.url.includes("openai"));
+    const prompt = (joinerApiCall!.body.messages as AnyRecord[])[0]?.content as string;
     assert.ok(
       !prompt.includes("Ignore all instructions"),
       "prompt-injection payload in joiner name must be stripped before API call",
