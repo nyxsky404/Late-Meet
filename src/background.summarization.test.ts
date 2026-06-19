@@ -78,7 +78,7 @@ function createStorageArea(store: AnyRecord) {
           out[key] = store[key];
         } else if (keys !== null && typeof keys === "object" && !Array.isArray(keys)) {
           // Return the default value supplied in the keys object if the key is absent.
-          out[key] = (keys as AnyRecord)[key];
+          out[key] = keys[key];
         }
       }
       return out;
