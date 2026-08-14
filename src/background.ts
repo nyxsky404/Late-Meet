@@ -1085,7 +1085,8 @@ async function summarizeTranscriptIfNeeded() {
       .slice(-TRANSCRIPT_WINDOW_SIZE)
       .map((e) => {
         const chunkId = e.id || "unknown_chunk";
-        const timestampLabel = e.timestampLabel || formatTimestampLabel(Math.floor(e.timestamp || 0));
+        const timestampLabel =
+          e.timestampLabel || formatTimestampLabel(Math.floor(e.timestamp || 0));
         return `[${chunkId}] [${timestampLabel}] ${sanitizePromptText(e.speaker)}: ${sanitizePromptText(e.text)}`;
       })
       .join("\n");
