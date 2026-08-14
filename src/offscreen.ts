@@ -14,6 +14,7 @@ import {
   connectMicrophoneToOffscreenAudioGraph,
   createOffscreenAudioGraph,
   MICROPHONE_AUDIO_CONSTRAINTS,
+  resumeAudioContextForCapture,
 } from "./offscreenAudioGraph";
 
 let mediaStream: MediaStream | null = null;
@@ -521,21 +522,14 @@ async function startCapture(
 
   audioContext = new AudioContext();
 
-  if (audioContext.state === "suspended") {
-    try {
-      await audioContext.resume();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      relay(`[warn] AudioContext.resume() failed: ${message}`);
-    }
-    // If the context is still suspended after the attempt, audio capture will
-    // not produce data. Abort early rather than silently proceeding with a
-    // non-functional pipeline.
-    if (audioContext.state === "suspended") {
-      throw new Error(
-        "AudioContext could not be resumed — browser may be enforcing autoplay policy. Try initiating capture from a user gesture.",
-      );
-    }
+  try {
+    await resumeAudioContextForCapture(audioContext, mediaStream, relay);
+  } catch (err) {
+    // The helper has already released both resources. Clear the module-level
+    // references so a later capture attempt starts from a clean state.
+    audioContext = null;
+    mediaStream = null;
+    throw err;
   }
 
   const audioGraph = createOffscreenAudioGraph(audioContext, mediaStream);
